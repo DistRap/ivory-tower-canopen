@@ -1,0 +1,3 @@
+module CANOpen.Native
+  (
+  ) where

@@ -1,0 +1,36 @@
+name:                ivory-tower-canopen
+version:             0.1.0.0
+synopsis:            CANOpen
+-- description:
+license:             BSD3
+author:              Richard Marko
+maintainer:          srk@48.io
+-- category:
+build-type:          Simple
+cabal-version:       >=1.10
+
+library
+  hs-source-dirs:      src
+  exposed-modules:     CANOpen.Native,
+                       CANOpen.Ivory,
+                       CANOpen.Ivory.Types,
+                       CANOpen.Tower
+                       CANOpen.Tower.LSS
+                       CANOpen.Tower.NMT
+                       CANOpen.Tower.Utils
+
+  build-depends:       base >= 4.6,
+                       bytestring,
+                       dlist,
+                       monadLib,
+                       ivory,
+                       ivory-stdlib,
+                       ivory-serialize,
+                       ivory-hw,
+                       tower              >= 0.9,
+                       tower-config,
+                       tower-hal
+
+  default-language:    Haskell2010
+  ghc-options:         -Wall 
+-- -Werror
