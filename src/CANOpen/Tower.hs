@@ -109,7 +109,7 @@ canopenTower res req = do
 
         emit devie $ constRef devinfo
 
-    -- device info updates from upstream
+    -- device info updates from upstream (initialization)
     handler di_upstream_out "canopen_devinfo" $ do
       lsse <- emitter lss_di_in 1
       callback $ \di -> do

@@ -38,9 +38,6 @@ nmtTower :: ChanOutput ('Struct "can_message")
          -> Tower e (
                 ChanInput ('Struct "device_info")
               , ChanOutput ('Struct "device_info"))
---                ChanInput ('Stored Uint8)
---              , ChanInput ('Stored NMTState)
---              , ChanOutput ('Stored NMTState))
 nmtTower res req = do
   (di_upstream_in, di_upstream_out) <- channel
   (di_in, di_out) <- channel
