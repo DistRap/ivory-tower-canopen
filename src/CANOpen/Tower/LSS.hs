@@ -264,6 +264,7 @@ lssGetU32 cmd arr = do
   v <- deref val
   return v
 
+-- LSS message packing, always 8 bytes long
 -- pack Uint32 into lss frame [cmd,u4,u3,u2,u1]
 lssMsgU32 :: LSSCMD
           -> ConstRef s2 ('Stored Uint32)
@@ -271,10 +272,10 @@ lssMsgU32 :: LSSCMD
                ('Effects r b ('Scope s1))
                (ConstRef ('Stack s1) ('Struct "can_message"))
 lssMsgU32 cmd x = do
-  arr <- local $ izerolen (Proxy :: Proxy 5)
+  arr <- local $ izerolen (Proxy :: Proxy 8)
   store (arr ! 0) (lssCmd cmd)
   packInto arr 1 x
-  canMsg lssRXCobID false (constRef arr) 5
+  canMsg lssRXCobID false (constRef arr) 8
 
 -- pack Uint16 into lss frame [cmd,u2,u1]
 lssMsgU16 :: LSSCMD
@@ -283,10 +284,10 @@ lssMsgU16 :: LSSCMD
                ('Effects r b ('Scope s1))
                (ConstRef ('Stack s1) ('Struct "can_message"))
 lssMsgU16 cmd x = do
-  arr <- local $ izerolen (Proxy :: Proxy 3)
+  arr <- local $ izerolen (Proxy :: Proxy 8)
   store (arr ! 0) (lssCmd cmd)
   packInto arr 1 x
-  canMsg lssRXCobID false (constRef arr) 3
+  canMsg lssRXCobID false (constRef arr) 8
 
 -- pack Uint8 into lss frame [cmd,u]
 lssMsgU8 :: LSSCMD
@@ -295,16 +296,16 @@ lssMsgU8 :: LSSCMD
               ('Effects r b ('Scope s1))
               (ConstRef ('Stack s1) ('Struct "can_message"))
 lssMsgU8 cmd x = do
-  arr <- local $ izerolen (Proxy :: Proxy 2)
+  arr <- local $ izerolen (Proxy :: Proxy 8)
   store (arr ! 0) (lssCmd cmd)
   packInto arr 1 x
-  canMsg lssRXCobID false (constRef arr) 2
+  canMsg lssRXCobID false (constRef arr) 8
 
 lssMsg :: LSSCMD
        -> Ivory
             ('Effects r b ('Scope s1))
             (ConstRef ('Stack s1) ('Struct "can_message"))
 lssMsg cmd = do
-  arr <- local $ izerolen (Proxy :: Proxy 1)
+  arr <- local $ izerolen (Proxy :: Proxy 8)
   store (arr ! 0) (lssCmd cmd)
-  canMsg lssRXCobID false (constRef arr) 1
+  canMsg lssRXCobID false (constRef arr) 8
