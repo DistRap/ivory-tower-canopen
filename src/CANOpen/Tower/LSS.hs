@@ -75,6 +75,12 @@ lssCmd IdentifyNonConfiguredReply = 0x50
 
 
 -- Layer Setting Services (CiA 305)
+--
+-- takes vendor, product, revision, S/N from incoming device_info
+-- outputs device_info when configuration is stored
+--
+-- Mainly used for configuring node_id and querying unconfigured
+-- devices
 lssTower :: ChanOutput ('Struct "can_message")
          -> AbortableTransmit ('Struct "can_message") ('Stored IBool)
          -> Tower e (
@@ -116,6 +122,9 @@ lssTower res req = do
         cond_
           [ isCmd SwitchModeGlobal ==> do
               store stateConfig true
+              -- XXX: handle command:
+              -- 0 - switches to operation mode
+              -- 1 - switches to config mode
 
           , isCmd SwitchModeSelectiveVendor ==> do
               vendor <- lssGetU32 SwitchModeSelectiveVendor (msg ~> can_message_buf)
@@ -168,9 +177,17 @@ lssTower res req = do
               reply <- lssMsgU16 StoreConfig $ constRef ec
               emit reqe reply
 
+              -- XXX:
               -- we do exit LSS here sending device info to parent canOpen tower
               -- this might not be according to spec but we don't have non-volatile
-              -- id storage for now
+              -- id storage for now (spec requires reset)
+              --
+              -- ideally at first device boot it should end up in LSS (nodeID is 0)
+              -- (user advised to start devices one by one)
+              -- unconfigured device is queried by host sw
+              -- nodeID (and optionally baudrate) is configured
+              -- config is saved to SRAM
+              -- node is rebooted, goes straight to NMT
               emit devie $ constRef devinfo
 
           , isCmd InquireVendor ==> do

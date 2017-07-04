@@ -33,6 +33,22 @@ nmtCmd ResetComm = 0x82
 heartBeatOffset :: Uint16
 heartBeatOffset = 0x700
 
+-- receives NMT (Network Management) messages from canopenTower
+--
+-- takes (required) node_id from incoming device_info
+-- outputs device_info iff state changes
+--
+-- NMT message format
+-- ID0 byte 1 node ID
+--     byte 0 command
+--
+-- example NMT messages:
+--
+-- # start node 01
+-- cansend can0 000#0101
+--
+-- # reset node 01
+-- cansend can0 000#8101
 nmtTower :: ChanOutput ('Struct "can_message")
          -> AbortableTransmit ('Struct "can_message") ('Stored IBool)
          -> Tower e (
@@ -57,34 +73,41 @@ nmtTower res req = do
         received += 1
         refCopy lastmsg msg
 
+        nid <- devinfo ~>* node_id
+        assert $ nid /=? 0
+        mlen <- deref (msg ~> can_message_len)
+        assert $ mlen ==? 2
+
         cmd <- deref (msg ~> can_message_buf ! 0)
+        targetId <- deref (msg ~> can_message_buf ! 1)
+
         store lastcmd cmd
         let isCmd x = (cmd ==? nmtCmd x)
 
-        cond_
-          [ isCmd Start ==> do
-              store nmtstate nmtOperational
+        when (targetId ==? 0 .|| targetId ==? nid) $ do
+          cond_
+            [ isCmd Start ==> do
+                store nmtstate nmtOperational
 
-              nid <- devinfo ~>* node_id
-              empty <- local $ ival 0
-              bootmsg <- canMsgUint8 (heartBeatOffset + safeCast nid) false $ constRef empty
-              emit reqe bootmsg
+                empty <- local $ ival 0
+                bootmsg <- canMsgUint8 (heartBeatOffset + safeCast nid) false $ constRef empty
+                emit reqe bootmsg
 
-          , isCmd Stop ==> do
-              store nmtstate nmtStopped
-          , isCmd PreOperation ==> do
-              store nmtstate nmtPreOperational
-          , isCmd ResetNode ==> do
-              store nmtstate nmtResetting
-          , isCmd ResetComm ==> do
-              store nmtstate nmtResettingComm
-          ]
+            , isCmd Stop ==> do
+                store nmtstate nmtStopped
+            , isCmd PreOperation ==> do
+                store nmtstate nmtPreOperational
+            , isCmd ResetNode ==> do
+                store nmtstate nmtResetting
+            , isCmd ResetComm ==> do
+                store nmtstate nmtResettingComm
+            ]
 
-        cstate <- deref nmtstate
-        prevstate <- devinfo ~>* nmt_state
-        when (cstate /=? prevstate) $ do
-          store (devinfo ~> nmt_state) cstate
-          emit nmte $ constRef devinfo
+          cstate <- deref nmtstate
+          prevstate <- devinfo ~>* nmt_state
+          when (cstate /=? prevstate) $ do
+            store (devinfo ~> nmt_state) cstate
+            emit nmte $ constRef devinfo
 
     handler di_upstream_out "nmt_devinfo" $ do
       callback $ refCopy devinfo

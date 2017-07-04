@@ -64,6 +64,7 @@ canopenTower res req = do
         received += 1
         refCopy lastmsg msg
 
+        nid <- devinfo ~>* node_id
         cid <- getStdCANId msg
 
         store dbg (cid)
@@ -76,7 +77,8 @@ canopenTower res req = do
         when (isLSS .&& isLSSmsg) $ do
           emit lsse msg
 
-        when isNMTmsg $ do
+        -- forward NMT messages only if node_id is configured
+        when (nid /=?0 .&& isNMTmsg) $ do
           emit nmte msg
 
     -- device info updates from lss
@@ -107,6 +109,7 @@ canopenTower res req = do
           emit lsse $ constRef devinfo
           emit nmte $ constRef devinfo
 
+        -- notify app
         emit devie $ constRef devinfo
 
     -- device info updates from upstream (initialization)
