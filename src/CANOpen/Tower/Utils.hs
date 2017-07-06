@@ -62,3 +62,12 @@ canMsgUint8 uid rtr x = do
   arr <- local $ izerolen (Proxy :: Proxy 1)
   packInto arr 0 x
   canMsg uid rtr (constRef arr) 1
+
+getStdCANId :: (IvoryExpr (ref s ('Struct "can_message")),
+                IvoryExpr (ref s ('Stored CANArbitrationField)), IvoryRef ref)
+            => ref s ('Struct "can_message")
+            -> Ivory eff Uint32
+getStdCANId msg = do
+  canarbit <- msg ~>* can_message_id
+  cid <- assign $ toRep $ canarbit #. can_arbitration_id
+  return (cid `iShiftR` 18)

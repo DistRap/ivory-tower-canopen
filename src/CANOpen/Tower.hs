@@ -20,15 +20,6 @@ import CANOpen.Tower.LSS
 import CANOpen.Tower.NMT
 import Ivory.Serialize
 
-getStdCANId :: (IvoryExpr (ref s ('Struct "can_message")),
-                IvoryExpr (ref s ('Stored CANArbitrationField)), IvoryRef ref)
-            => ref s ('Struct "can_message")
-            -> Ivory eff Uint32
-getStdCANId msg = do
-  canarbit <- msg ~>* can_message_id
-  cid <- assign $ toRep $ canarbit #. can_arbitration_id
-  return (cid `iShiftR` 18)
-
 canopenTower ::
             ChanOutput ('Struct "can_message")
          -> AbortableTransmit ('Struct "can_message") ('Stored IBool)
