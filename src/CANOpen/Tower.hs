@@ -7,7 +7,10 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module CANOpen.Tower where
+module CANOpen.Tower
+  ( canopenTower
+  , CANOpenLEDs(..)
+  ) where
 
 import Ivory.Language
 import Ivory.Stdlib
@@ -18,16 +21,19 @@ import Ivory.Tower.HAL.Bus.Interface
 import CANOpen.Ivory.Types
 import CANOpen.Tower.LSS
 import CANOpen.Tower.NMT
+import CANOpen.Tower.LED
+import CANOpen.Tower.Utils
 import Ivory.Serialize
 
 canopenTower ::
             ChanOutput ('Struct "can_message")
          -> AbortableTransmit ('Struct "can_message") ('Stored IBool)
+         -> CANOpenLEDs
          -> Tower e (
                 ChanInput ('Struct "device_info")
               , ChanOutput ('Struct "device_info")
             )
-canopenTower res req = do
+canopenTower res req leds = do
   canopenTowerDeps
 
   (di_in, di_out) <- channel
@@ -35,6 +41,7 @@ canopenTower res req = do
   (lss_in, lss_out) <- channel
   (nmt_in, nmt_out) <- channel
 
+  ledState <- ledStatusTower leds
   (lss_di_in, lss_di_out) <- lssTower lss_out req
   (nmt_di_in, nmt_di_out) <- nmtTower nmt_out req
 
@@ -76,6 +83,7 @@ canopenTower res req = do
     handler lss_di_out "canopen_lss_devinfo" $ do
       nmte <- emitter nmt_di_in 1
       devie <- emitter di_in 1
+      ledStateE <- emitter ledState 2
       callback $ \di -> do
         refCopy devinfo di
         store stateLSS false
@@ -84,11 +92,15 @@ canopenTower res req = do
         emit nmte $ constRef devinfo
         emit devie $ constRef devinfo
 
+        emitV ledStateE ledstateOk
+        emitV ledStateE ledstatePreOperational
+
     -- device info updates from nmt
     handler nmt_di_out "canopen_nmt_devinfo" $ do
       lsse <- emitter lss_di_in 1
       nmte <- emitter nmt_di_in 1
       devie <- emitter di_in 1
+      ledStateE <- emitter ledState 1
       callback $ \di -> do
         refCopy devinfo di
 
@@ -99,6 +111,16 @@ canopenTower res req = do
           store stateLSS true
           emit lsse $ constRef devinfo
           emit nmte $ constRef devinfo
+          emitV ledStateE ledstateLSS
+
+        when (nstate ==? nmtStopped) $ do
+          emitV ledStateE ledstateStopped
+
+        when (nstate ==? nmtPreOperational) $ do
+          emitV ledStateE ledstatePreOperational
+
+        when (nstate ==? nmtOperational) $ do
+          emitV ledStateE ledstateOperational
 
         -- notify app
         emit devie $ constRef devinfo
@@ -106,6 +128,7 @@ canopenTower res req = do
     -- device info updates from upstream (initialization)
     handler di_upstream_out "canopen_devinfo" $ do
       lsse <- emitter lss_di_in 1
+      ledStateE <- emitter ledState 1
       callback $ \di -> do
         refCopy devinfo di
         refCopy initDevinfo di
@@ -115,6 +138,7 @@ canopenTower res req = do
         when (nid ==? 0 .&& hasLSS) $ do
           emit lsse $ constRef devinfo
           store stateLSS true
+          emitV ledStateE ledstateLSS
 
   return (di_upstream_in, di_out)
 

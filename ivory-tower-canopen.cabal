@@ -16,6 +16,7 @@ library
                        CANOpen.Ivory.Types,
                        CANOpen.Tower
                        CANOpen.Tower.LSS
+                       CANOpen.Tower.LED
                        CANOpen.Tower.NMT
                        CANOpen.Tower.Utils
 
