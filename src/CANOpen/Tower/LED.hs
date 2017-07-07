@@ -118,7 +118,6 @@ ledController LED{..} = do
 
     handler ledOut "modeOut" $ callbackV $ \stat -> do
       store led_cnt (0 :: Uint8)
-      store led_flashes (0 :: Uint8)
       store led_is_on false
       store led_state stat
       led_off
