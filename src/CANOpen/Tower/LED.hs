@@ -47,8 +47,8 @@ ledStatusTower :: CANOpenLEDs -> Tower e (ChanInput ('Stored LEDState))
 ledStatusTower CANOpenLEDs{..} = do
   (stIn, stOut) <- channel
 
-  err_led <- ledController $ LED leds_init leds_err_on leds_err_off 0
-  run_led <- ledController $ LED leds_init leds_run_on leds_run_off 50
+  err_led <- ledController $ LED leds_init leds_err_on leds_err_off
+  run_led <- ledController $ LED leds_init leds_run_on leds_run_off
 
   monitor "led_status_controller" $ do
 
@@ -98,13 +98,12 @@ data LED =
     { led_init   :: forall eff . Ivory eff ()
     , led_on     :: forall eff . Ivory eff ()
     , led_off    :: forall eff . Ivory eff ()
-    , led_phase  :: Integer
     }
 
 -- LED controller with CANOpen modes (CiA 303-3)
 ledController :: LED -> Tower e (ChanInput ('Stored LEDMode))
 ledController LED{..} = do
-  p <- periodPhase (Milliseconds 50) (Milliseconds led_phase)
+  p <- period (Milliseconds 50)
   (ledIn, ledOut) <- channel
 
   monitor "led_controller" $ do
