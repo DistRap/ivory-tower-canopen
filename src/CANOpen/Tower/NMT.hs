@@ -58,6 +58,8 @@ nmtTower res req = do
   (di_upstream_in, di_upstream_out) <- channel
   (di_in, di_out) <- channel
 
+  p <- period (Milliseconds 1)
+
   monitor "nmt_controller" $ do
     received <- stateInit "nmt_received" (ival (0 :: Uint32))
     lastmsg <- state "nmt_lastmsg"
@@ -65,6 +67,9 @@ nmtTower res req = do
     devinfo <- state "nmt_device_info"
 
     nmtstate <- stateInit "nmt_state" (ival nmtInitialising)
+
+    heartbeat_cnt <- stateInit "heartbeat_cnt" (ival (0 :: Uint16))
+    heartbeat_enabled <- state "heartbeat_enabled"
 
     handler res "nmtcanmsg" $ do
       nmte <- emitter di_in 1
@@ -89,18 +94,24 @@ nmtTower res req = do
             [ isCmd Start ==> do
                 store nmtstate nmtOperational
 
-                empty <- local $ ival 0
-                bootmsg <- canMsgUint8 (heartBeatOffset + safeCast nid) false $ constRef empty
-                emit reqe bootmsg
-
             , isCmd Stop ==> do
                 store nmtstate nmtStopped
             , isCmd PreOperation ==> do
                 store nmtstate nmtPreOperational
+
+                -- emit bootmsg when entering pre-Operational
+                empty <- local $ ival 0
+                bootmsg <- canMsgUint8 (heartBeatOffset + safeCast nid) false $ constRef empty
+                emit reqe bootmsg
+
+                store heartbeat_enabled true
+
             , isCmd ResetNode ==> do
                 store nmtstate nmtResetting
+                store heartbeat_enabled false
             , isCmd ResetComm ==> do
                 store nmtstate nmtResettingComm
+                store heartbeat_enabled false
             ]
 
           cstate <- deref nmtstate
@@ -111,5 +122,31 @@ nmtTower res req = do
 
     handler di_upstream_out "nmt_devinfo" $ do
       callback $ refCopy devinfo
+
+    handler p "per_heartbeat" $ do
+      reqe   <- emitter (abortableTransmit req) 1
+      callback $ const $ do
+        cnt <- deref heartbeat_cnt
+        ena <- deref heartbeat_enabled
+        tim <- (devinfo ~>* heartbeat_time)
+
+        heartbeat_cnt += 1
+
+        when (ena .&& tim /=? 0) $ do
+          when (cnt >=? tim) $ do
+            nid <- devinfo ~>* node_id
+            state <- deref nmtstate
+
+            heartbeat_state <- local $ ival (0 :: Uint8)
+            cond_
+              [ state ==? nmtStopped ==> store heartbeat_state 4
+              , state ==? nmtOperational ==> store heartbeat_state 5
+              , state ==? nmtPreOperational ==> store heartbeat_state 127
+              ]
+
+            bootmsg <- canMsgUint8 (heartBeatOffset + safeCast nid) false $ constRef heartbeat_state
+            emit reqe bootmsg
+
+            store heartbeat_cnt 0
 
   return (di_upstream_in, di_out)

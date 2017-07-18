@@ -20,7 +20,7 @@ struct device_info
   ; tx_pdo_count :: Stored Uint8
   ; lss_supported :: Stored IBool
   ; nmt_state :: Stored NMTState
-  ; heartbeat_time :: Stored Uint8
+  ; heartbeat_time :: Stored Uint16
   }
 |]
 
