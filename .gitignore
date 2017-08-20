@@ -1,1 +1,4 @@
+attic
 .stack-work
+build
+schema/canopen-schema-*

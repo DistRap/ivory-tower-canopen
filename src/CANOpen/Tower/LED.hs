@@ -8,7 +8,6 @@ module CANOpen.Tower.LED where
 import Ivory.Language
 import Ivory.Stdlib
 import Ivory.Tower
-import Ivory.HW.Module
 
 
 newtype LEDState = LEDState Uint8
@@ -26,6 +25,7 @@ ledstateOk, ledstateWarn, ledstateLSS, ledstateErrorControlEvent,
 data CANOpenLEDs =
   CANOpenLEDs
     { leds_init       :: forall eff . Ivory eff ()
+    , leds_module     :: ModuleDef
     , leds_err_on     :: forall eff . Ivory eff ()
     , leds_err_off    :: forall eff . Ivory eff ()
     , leds_run_on     :: forall eff . Ivory eff ()
@@ -36,6 +36,7 @@ emptyLEDs :: CANOpenLEDs
 emptyLEDs =
   CANOpenLEDs
     { leds_init       = return ()
+    , leds_module     = return ()
     , leds_err_on     = return ()
     , leds_err_off    = return ()
     , leds_run_on     = return ()
@@ -47,10 +48,11 @@ ledStatusTower :: CANOpenLEDs -> Tower e (ChanInput ('Stored LEDState))
 ledStatusTower CANOpenLEDs{..} = do
   (stIn, stOut) <- channel
 
-  err_led <- ledController $ LED leds_init leds_err_on leds_err_off
-  run_led <- ledController $ LED leds_init leds_run_on leds_run_off
+  err_led <- ledController $ LED leds_init leds_module leds_err_on leds_err_off
+  run_led <- ledController $ LED leds_init leds_module leds_run_on leds_run_off
 
   monitor "led_status_controller" $ do
+    monitorModuleDef $ leds_module
 
     st <- state "led_controller_status"
 
@@ -96,6 +98,7 @@ ledOff, ledOn, ledFlicker, ledBlink, ledFlashSingle,
 data LED =
   LED
     { led_init   :: forall eff . Ivory eff ()
+    , led_module :: ModuleDef
     , led_on     :: forall eff . Ivory eff ()
     , led_off    :: forall eff . Ivory eff ()
     }
@@ -107,7 +110,7 @@ ledController LED{..} = do
   (ledIn, ledOut) <- channel
 
   monitor "led_controller" $ do
-    monitorModuleDef $ hw_moduledef
+    monitorModuleDef $ led_module
     handler systemInit "init" $ callback $ const $ led_init
 
     led_is_on <- state "led_on"

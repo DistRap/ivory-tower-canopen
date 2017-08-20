@@ -10,9 +10,13 @@ import Ivory.Tower.HAL.Bus.CAN
 import Ivory.Tower.HAL.Bus.Interface
 import Ivory.Tower.HAL.Bus.CAN.Fragment
 
-import CANOpen.Ivory.Types
-import CANOpen.Tower.Utils
 import Ivory.Serialize.LittleEndian
+
+import CANOpen.Ivory.Types.Identity
+import CANOpen.Tower.Utils
+
+import CANOpen.Tower.Attr
+import CANOpen.Tower.Interface.Base.Dict
 
 lssTXCobID :: Uint16
 lssTXCobID = 0x7E5
@@ -76,25 +80,28 @@ lssCmd IdentifyNonConfiguredReply = 0x50
 
 -- Layer Setting Services (CiA 305)
 --
--- takes vendor, product, revision, S/N from incoming device_info
--- outputs device_info when configuration is stored
+-- takes vendor, product, revision, S/N from identity attr
+-- outputs node_id when saved
 --
 -- Mainly used for configuring node_id and querying unconfigured
 -- devices
 lssTower :: ChanOutput ('Struct "can_message")
          -> AbortableTransmit ('Struct "can_message") ('Stored IBool)
+         -> BaseAttrs Attr
          -> Tower e (
-                ChanInput ('Struct "device_info")
-              , ChanOutput ('Struct "device_info")
+                ChanInput ('Stored Uint8)
+              , ChanOutput ('Stored Uint8)
             )
-lssTower res req = do
-  (di_in, di_out) <- channel
-  (di_upstream_in, di_upstream_out) <- channel
+lssTower res req attrs = do
+  (nid_in, nid_out) <- channel
+  -- XXX: handle this
+  (nid_upstream_in, nid_upstream_out) <- channel
 
   monitor "lss_controller" $ do
     received <- stateInit "lss_received" (ival (0 :: Uint32))
     lastmsg <- state "lss_lastmsg"
-    devinfo <- state "lss_device_info"
+    ident <- state "lss_ident"
+    nodeId <- state "lss_node_id"
 
     stateConfig <- stateInit "lss_state_config" (ival false)
     stateConfigured <- stateInit "lss_state_configured" (ival false)
@@ -103,8 +110,10 @@ lssTower res req = do
     selective <- state "lss_selective" -- switch mode selective in progress
     identify <- state "lss_identify" -- identify in progress
 
+    attrHandler (identity attrs) $ callback $ refCopy ident
+
     handler res "lsscanmsg" $ do
-      devie <- emitter di_in 1
+      nidE <- emitter nid_in 1
       reqe   <- emitter (abortableTransmit req) 1
       callback $ \msg -> do
         received += 1
@@ -128,22 +137,22 @@ lssTower res req = do
 
           , isCmd SwitchModeSelectiveVendor ==> do
               vendor <- lssGetU32 SwitchModeSelectiveVendor (msg ~> can_message_buf)
-              ourVendor <- devinfo ~>* vendor_id
+              ourVendor <- ident ~>* vendor_id
               store selective (vendor ==? ourVendor)
 
           , isCmd SwitchModeSelectiveProduct .&& isSelective ==> do
               code <- lssGetU32 SwitchModeSelectiveProduct (msg ~> can_message_buf)
-              ourCode <- devinfo ~>* product_code
+              ourCode <- ident ~>* product_code
               store selective (code ==? ourCode)
 
           , isCmd SwitchModeSelectiveRevision .&& isSelective ==> do
               rev <- lssGetU32 SwitchModeSelectiveRevision (msg ~> can_message_buf)
-              ourRev <- devinfo ~>* revision_number
+              ourRev <- ident ~>* revision_number
               store selective (rev ==? ourRev)
 
            , isCmd SwitchModeSelectiveSerial .&& isSelective ==> do
               ser <- lssGetU32 SwitchModeSelectiveSerial (msg ~> can_message_buf)
-              ourSer <- devinfo ~>* serial_number
+              ourSer <- ident ~>* serial_number
               when (ser ==? ourSer) $ do
                 store stateConfig true
 
@@ -158,7 +167,7 @@ lssTower res req = do
                   specific_err_code :: Uint8
                   specific_err_code = 0
               nid <- deref (msg ~> can_message_buf ! 1)
-              store (devinfo ~> node_id) nid
+              store nodeId nid
 
               ec <- local $ ival (safeCast err_code `iShiftL` 8 + safeCast specific_err_code) 
               reply <- lssMsgU16 ConfigNodeID $ constRef ec
@@ -188,22 +197,22 @@ lssTower res req = do
               -- nodeID (and optionally baudrate) is configured
               -- config is saved to SRAM
               -- node is rebooted, goes straight to NMT
-              emit devie $ constRef devinfo
+              emit nidE $ constRef nodeId
 
           , isCmd InquireVendor ==> do
-              reply <- lssMsgU32 InquireVendor $ constRef (devinfo ~> vendor_id)
+              reply <- lssMsgU32 InquireVendor $ constRef (ident ~> vendor_id)
               emit reqe reply
           , isCmd InquireProduct ==> do
-              reply <- lssMsgU32 InquireProduct $ constRef (devinfo ~> product_code)
+              reply <- lssMsgU32 InquireProduct $ constRef (ident ~> product_code)
               emit reqe reply
           , isCmd InquireRevision ==> do
-              reply <- lssMsgU32 InquireRevision $ constRef (devinfo ~> revision_number)
+              reply <- lssMsgU32 InquireRevision $ constRef (ident ~> revision_number)
               emit reqe reply
           , isCmd InquireSerial ==> do
-              reply <- lssMsgU32 InquireSerial $ constRef (devinfo ~> serial_number)
+              reply <- lssMsgU32 InquireSerial $ constRef (ident ~> serial_number)
               emit reqe reply
           , isCmd InquireNodeID ==> do
-              reply <- lssMsgU8 InquireNodeID $ constRef (devinfo ~> node_id)
+              reply <- lssMsgU8 InquireNodeID $ constRef nodeId
               emit reqe reply
           , isCmd IdentifyNonConfigured ==> do
               unless isConfigured $ do
@@ -212,32 +221,32 @@ lssTower res req = do
 
           , isCmd IdentifyRemoteSlavesVendor ==> do
               vendor <- lssGetU32 IdentifyRemoteSlavesVendor (msg ~> can_message_buf)
-              ourVendor <- devinfo ~>* vendor_id
+              ourVendor <- ident ~>* vendor_id
               store identify (vendor ==? ourVendor)
 
           , isCmd IdentifyRemoteSlavesProduct .&& isIdentify ==> do
               code <- lssGetU32 IdentifyRemoteSlavesProduct (msg ~> can_message_buf)
-              ourCode <- devinfo ~>* product_code
+              ourCode <- ident ~>* product_code
               store identify (code ==? ourCode)
 
           , isCmd IdentifyRemoteSlavesRevisionLow .&& isIdentify ==> do
               rev <- lssGetU32 IdentifyRemoteSlavesRevisionLow (msg ~> can_message_buf)
-              ourRev <- devinfo ~>* revision_number
+              ourRev <- ident ~>* revision_number
               store identify (rev <=? ourRev)
 
           , isCmd IdentifyRemoteSlavesRevisionHi .&& isIdentify ==> do
               rev <- lssGetU32 IdentifyRemoteSlavesRevisionHi (msg ~> can_message_buf)
-              ourRev <- devinfo ~>* revision_number
+              ourRev <- ident ~>* revision_number
               store identify (rev >=? ourRev)
 
           , isCmd IdentifyRemoteSlavesSerialLow .&& isIdentify ==> do
               ser <- lssGetU32 IdentifyRemoteSlavesSerialLow (msg ~> can_message_buf)
-              ourSer <- devinfo ~>* serial_number
+              ourSer <- ident ~>* serial_number
               store identify (ser <=? ourSer)
 
           , isCmd IdentifyRemoteSlavesSerialHi .&& isIdentify ==> do
               ser <- lssGetU32 IdentifyRemoteSlavesSerialHi (msg ~> can_message_buf)
-              ourSer <- devinfo ~>* serial_number
+              ourSer <- ident ~>* serial_number
               when (ser >=? ourSer) $ do
 
                 reply <- lssMsg IdentifyRemoteSlavesReply
@@ -246,11 +255,7 @@ lssTower res req = do
               store identify false
           ]
 
-
-    handler di_upstream_out "lss_devinfo" $ do
-      callback $ refCopy devinfo
-
-  return (di_upstream_in, di_out)
+  return (nid_upstream_in, nid_out)
 
 -- unpack Uint32 from incoming LSS CAN message
 lssGetU32 :: LSSCMD
@@ -265,6 +270,7 @@ lssGetU32 cmd arr = do
   return v
 
 -- LSS message packing, always 8 bytes long
+
 -- pack Uint32 into lss frame [cmd,u4,u3,u2,u1]
 lssMsgU32 :: LSSCMD
           -> ConstRef s2 ('Stored Uint32)

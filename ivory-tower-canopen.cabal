@@ -12,12 +12,14 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   exposed-modules:     CANOpen.Native,
-                       CANOpen.Ivory,
-                       CANOpen.Ivory.Types,
                        CANOpen.Tower
                        CANOpen.Tower.LSS
                        CANOpen.Tower.LED
                        CANOpen.Tower.NMT
+                       CANOpen.Tower.NMT.Types
+                       CANOpen.Tower.SDO
+                       CANOpen.Tower.SDO.Types
+                       CANOpen.Tower.PDO
                        CANOpen.Tower.Utils
 
   build-depends:       base >= 4.6,
@@ -30,8 +32,26 @@ library
                        ivory-hw,
                        tower              >= 0.9,
                        tower-config,
-                       tower-hal
+                       tower-hal,
+                       canopen-schema-tower
 
   default-language:    Haskell2010
-  ghc-options:         -Wall 
+  ghc-options:         -Wall
 -- -Werror
+
+executable canopen-posix-test-gen
+  main-is:             CANOpenPosix.hs
+  hs-source-dirs:      test
+  build-depends:       base >= 4.6,
+                       ivory,
+                       ivory-stdlib,
+                       ivory-serialize,
+                       ivory-hw,
+                       tower              >= 0.9,
+                       tower-config,
+                       tower-hal,
+                       can4disco,
+                       ivory-tower-base,
+                       ivory-tower-posix,
+                       ivory-tower-canopen,
+                       canopen-schema-tower

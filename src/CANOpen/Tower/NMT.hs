@@ -11,9 +11,12 @@ import Ivory.Tower.HAL.Bus.CAN
 import Ivory.Tower.HAL.Bus.Interface
 import Ivory.Tower.HAL.Bus.CAN.Fragment
 
-import CANOpen.Ivory.Types
-import CANOpen.Tower.Utils
 import Ivory.Serialize.LittleEndian
+
+import CANOpen.Tower.Attr
+import CANOpen.Tower.Interface.Base.Dict
+import CANOpen.Tower.NMT.Types
+import CANOpen.Tower.Utils
 
 data NMTCMD
   = Start
@@ -35,8 +38,8 @@ heartBeatOffset = 0x700
 
 -- receives NMT (Network Management) messages from canopenTower
 --
--- takes (required) node_id from incoming device_info
--- outputs device_info iff state changes
+-- takes (required) node_id
+-- outputs NMTState iff state changes
 --
 -- NMT message format
 -- ID0 byte 1 node ID
@@ -51,12 +54,13 @@ heartBeatOffset = 0x700
 -- cansend can0 000#8101
 nmtTower :: ChanOutput ('Struct "can_message")
          -> AbortableTransmit ('Struct "can_message") ('Stored IBool)
-         -> Tower e (
-                ChanInput ('Struct "device_info")
-              , ChanOutput ('Struct "device_info"))
-nmtTower res req = do
-  (di_upstream_in, di_upstream_out) <- channel
-  (di_in, di_out) <- channel
+         -> ChanOutput ('Stored Uint8)
+         -> BaseAttrs Attr
+         -> Tower e (  ChanInput ('Stored NMTState)
+                     , ChanOutput ('Stored NMTState))
+nmtTower res req nid_update attrs = do
+  (nmt_notify_in, nmt_notify_out) <- channel
+  (nmt_set_in, nmt_set_out) <- channel
 
   p <- period (Milliseconds 1)
 
@@ -64,21 +68,33 @@ nmtTower res req = do
     received <- stateInit "nmt_received" (ival (0 :: Uint32))
     lastmsg <- state "nmt_lastmsg"
     lastcmd <- state "nmt_lastcmd"
-    devinfo <- state "nmt_device_info"
 
-    nmtstate <- stateInit "nmt_state" (ival nmtInitialising)
+    nmtState <- stateInit "nmt_state" (ival nmtInitialising)
+    previous_nmtState <- stateInit "nmt_state_prev" (ival nmtInitialising)
+
+    nodeId <- stateInit "heartbeat_node_id" (ival (0 :: Uint8))
 
     heartbeat_cnt <- stateInit "heartbeat_cnt" (ival (0 :: Uint16))
     heartbeat_enabled <- state "heartbeat_enabled"
+    heartbeat_time <- state "heartbeat_time"
+
+    attrHandler (producerHeartbeatTime attrs) $ do
+      callbackV $ \time -> do
+        store heartbeat_time time
+        when (time >? 0) $ store heartbeat_enabled true
+
+    handler systemInit "nmtinit" $ do
+      nmtE <- emitter nmt_notify_in 1
+      callback $ const $ emit nmtE (constRef nmtState)
 
     handler res "nmtcanmsg" $ do
-      nmte <- emitter di_in 1
-      reqe   <- emitter (abortableTransmit req) 1
+      nmtE <- emitter nmt_notify_in 1
+      reqE <- emitter (abortableTransmit req) 1
       callback $ \msg -> do
         received += 1
         refCopy lastmsg msg
 
-        nid <- devinfo ~>* node_id
+        nid <- deref nodeId
         assert $ nid /=? 0
         mlen <- deref (msg ~> can_message_len)
         assert $ mlen ==? 2
@@ -92,50 +108,53 @@ nmtTower res req = do
         when (targetId ==? 0 .|| targetId ==? nid) $ do
           cond_
             [ isCmd Start ==> do
-                store nmtstate nmtOperational
-
+                store nmtState nmtOperational
             , isCmd Stop ==> do
-                store nmtstate nmtStopped
+                store nmtState nmtStopped
             , isCmd PreOperation ==> do
-                store nmtstate nmtPreOperational
+                store nmtState nmtPreOperational
 
                 -- emit bootmsg when entering pre-Operational
                 empty <- local $ ival 0
                 bootmsg <- canMsgUint8 (heartBeatOffset + safeCast nid) false $ constRef empty
-                emit reqe bootmsg
+                emit reqE bootmsg
 
                 store heartbeat_enabled true
 
             , isCmd ResetNode ==> do
-                store nmtstate nmtResetting
+                store nmtState nmtResetting
                 store heartbeat_enabled false
             , isCmd ResetComm ==> do
-                store nmtstate nmtResettingComm
+                store nmtState nmtResettingComm
                 store heartbeat_enabled false
             ]
 
-          cstate <- deref nmtstate
-          prevstate <- devinfo ~>* nmt_state
+          cstate <- deref nmtState
+          prevstate <- deref previous_nmtState
           when (cstate /=? prevstate) $ do
-            store (devinfo ~> nmt_state) cstate
-            emit nmte $ constRef devinfo
+            store previous_nmtState cstate
+            emit nmtE $ constRef nmtState
 
-    handler di_upstream_out "nmt_devinfo" $ do
-      callback $ refCopy devinfo
+    handler nid_update "nmt_node_id" $ do
+      callback $ refCopy nodeId
+
+    handler nmt_set_out "nmt_set" $ do
+      nmtE <- emitter nmt_notify_in 1
+      callback $ \x -> refCopy nmtState x >> emit nmtE x
 
     handler p "per_heartbeat" $ do
       reqe   <- emitter (abortableTransmit req) 1
       callback $ const $ do
         cnt <- deref heartbeat_cnt
         ena <- deref heartbeat_enabled
-        tim <- (devinfo ~>* heartbeat_time)
+        tim <- deref heartbeat_time
 
         heartbeat_cnt += 1
 
         when (ena .&& tim /=? 0) $ do
           when (cnt >=? tim) $ do
-            nid <- devinfo ~>* node_id
-            state <- deref nmtstate
+            nid <- deref nodeId
+            state <- deref nmtState
 
             heartbeat_state <- local $ ival (0 :: Uint8)
             cond_
@@ -149,4 +168,4 @@ nmtTower res req = do
 
             store heartbeat_cnt 0
 
-  return (di_upstream_in, di_out)
+  return (nmt_set_in, nmt_notify_out)
