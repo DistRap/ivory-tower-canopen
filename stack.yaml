@@ -37,10 +37,12 @@ packages:
     - tower-config
     - tower-hal
     - tower-aadl
+- location: ./ivory-tower-canopen-core/
 - location: ./schema/
   extra-dep: true
   subdirs:
     - canopen-schema-tower
+    - canopen-schema-native
 
 # Packages to be pulled from upstream that are not in the resolver (e.g., acme-missiles-0.3)
 extra-deps:
