@@ -1,7 +1,7 @@
-IVORY_REPO             ?= ../../ivory
-TOWER_REPO             ?= ../../tower
-IVORY_TOWER_STM32_REPO ?= ../../ivory-tower-stm32
-IVORY_TOWER_CANOPEN    ?= ../../ivory-tower-canopen
+IVORY_SRC               ?= ../../ivory
+TOWER_SRC               ?= ../../tower
+IVORY_TOWER_STM32_SRC   ?= ../../ivory-tower-stm32
+IVORY_TOWER_CANOPEN_SRC ?= ../../ivory-tower-canopen
 
 CIDL ?= cidl # --debug
 NAME ?= CANOpen # name prefix
@@ -27,10 +27,10 @@ canopen-schema-tower:
 	     -o canopen-schema-tower \
 	     -p canopen-schema-tower \
 	     -n $(NAME) \
-	     --ivory-repo=$(IVORY_REPO) \
-	     --tower-repo=$(TOWER_REPO) \
-	     --ivory-tower-stm32-repo=$(IVORY_TOWER_STM32_REPO) \
-	     --canopen-repo=$(IVORY_TOWER_CANOPEN)
+	     --ivory-repo=$(IVORY_SRC) \
+	     --tower-repo=$(TOWER_SRC) \
+	     --ivory-tower-stm32-repo=$(IVORY_TOWER_STM32_SRC) \
+	     --canopen-repo=$(IVORY_TOWER_CANOPEN_SRC)
 
 .PHONY: canopen-schema-elm
 canopen-schema-elm:
