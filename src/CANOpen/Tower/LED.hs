@@ -67,19 +67,19 @@ ledStatusTower CANOpenLEDs{..} = do
         cond_
           [
           -- err led
-            stat ==? ledstateOk ==> emitV errLed ledOff
-          , stat ==? ledstateWarn ==> emitV errLed ledFlashSingle
+            stat ==? ledstateOk                ==> emitV errLed ledOff
+          , stat ==? ledstateWarn              ==> emitV errLed ledFlashSingle
           , stat ==? ledstateErrorControlEvent ==> emitV errLed ledFlashDouble
-          , stat ==? ledstateSyncError ==> emitV errLed ledFlashTriple
-          , stat ==? ledstateBusOff ==> emitV errLed ledOn
+          , stat ==? ledstateSyncError         ==> emitV errLed ledFlashTriple
+          , stat ==? ledstateBusOff            ==> emitV errLed ledOn
 
           -- run led
-          , stat ==? ledstateStopped ==> emitV runLed ledFlashSingle
-          , stat ==? ledstatePreOperational ==> emitV runLed ledBlink
-          , stat ==? ledstateOperational ==> emitV runLed ledOn
+          , stat ==? ledstateStopped           ==> emitV runLed ledFlashSingle
+          , stat ==? ledstatePreOperational    ==> emitV runLed ledBlink
+          , stat ==? ledstateOperational       ==> emitV runLed ledOn
 
           -- both
-          , stat ==? ledstateLSS ==> do
+          , stat ==? ledstateLSS               ==> do
               emitV errLed ledFlicker
               emitV runLed ledFlicker
           ]
@@ -113,10 +113,10 @@ ledController LED{..} = do
     monitorModuleDef $ led_module
     handler systemInit "init" $ callback $ const $ led_init
 
-    led_is_on <- state "led_on"
-    led_state <- state "led_state"
+    led_is_on  <- state "led_on"
+    led_state  <- state "led_state"
     led_toggle <- state "led_toggle"
-    led_cnt <- state "led_cnt"
+    led_cnt    <- state "led_cnt"
 
     handler ledOut "modeOut" $ callbackV $ \stat -> do
       store led_cnt (0 :: Uint8)
