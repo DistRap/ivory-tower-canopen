@@ -3,7 +3,7 @@ TOWER_REPO             ?= ../../tower
 IVORY_TOWER_STM32_REPO ?= ../../ivory-tower-stm32
 IVORY_TOWER_CANOPEN    ?= ../../ivory-tower-canopen
 
-GIDL ?= cidl # --debug
+CIDL ?= cidl # --debug
 NAME ?= CANOpen # name prefix
 
 default: canopen-schema-native
@@ -16,14 +16,14 @@ test: canopen-schema-elm-test
 
 .PHONY: canopen-schema-native
 canopen-schema-native:
-	$(GIDL) -b haskell \
+	$(CIDL) -b haskell \
 	     -o canopen-schema-native \
 	     -p canopen-schema-native \
 	     -n $(NAME)
 
 .PHONY: canopen-schema-tower
 canopen-schema-tower:
-	$(GIDL) -b tower \
+	$(CIDL) -b tower \
 	     -o canopen-schema-tower \
 	     -p canopen-schema-tower \
 	     -n $(NAME) \
@@ -34,7 +34,7 @@ canopen-schema-tower:
 
 .PHONY: canopen-schema-elm
 canopen-schema-elm:
-	$(GIDL) -b elm \
+	$(CIDL) -b elm \
 	     -o canopen-schema-elm \
 	     -p canopen-schema-elm \
 	     -n $(NAME)
