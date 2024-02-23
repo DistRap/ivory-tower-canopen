@@ -1,5 +1,3 @@
-#include ../stack.mk
-
 IVORYFLAGS ?= --const-fold --verbose
 TESTS      := \
 	canopen-posix-test
@@ -25,10 +23,7 @@ schema: cidl-bootstrap
 
 define MKTEST
 $(1):
-	# ideally we would be only target executable
-	# needs fixing in stack
-	# https://github.com/commercialhaskell/stack/issues/1406
-	stack build . --exec '$(1)-gen --src-dir=build/$(1) $(IVORYFLAGS)'
+	cabal run $(1)-gen -- --src-dir=build/$(1) $(IVORYFLAGS)
 	make -C build/$(1)
 $(1)-clean:
 	rm -rf build/$(1)
