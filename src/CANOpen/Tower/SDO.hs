@@ -24,6 +24,8 @@ import CANOpen.Tower.Types
 import CANOpen.Tower.SDO.Types
 import Ivory.Serialize.LittleEndian
 
+import qualified Ivory.Base
+
 sdoRequestBase :: Uint16
 sdoRequestBase = 0x600
 sdoReplyBase :: Uint16
@@ -185,7 +187,7 @@ sdoTower res req ObjDict{..} nid_update = do
                   (do
                      ifte_ sizeIndicated
                        (do
-                          arrayCopyFromOffset (muxpack ~> mp_buf ~> stringDataL) buf 4 numBytes
+                          Ivory.Base.arrayCopyFromOffset (muxpack ~> mp_buf ~> stringDataL) buf 4 numBytes
                           store (muxpack ~> mp_buf ~> stringLengthL) numBytes
 
                           -- object dict set
@@ -292,36 +294,3 @@ canToUint64 buf = do
     store out (x `iShiftL` (8 - (safeCast $ (signCast :: Sint32 -> Uint32) $ fromIx i)))
 
   return $ constRef out
-
-arrayCopyFromOffset :: ( ANat n, ANat m, IvoryRef r
-                       , IvoryExpr (r s2 ('Array m ('Stored t)))
-                       , IvoryExpr (r s2 ('Stored t))
-                       , IvoryStore t
-                       )
-                    => Ref s1 ('Array n ('Stored t))
-                    -> r s2 ('Array m ('Stored t))
-                    -> Sint32
-                    -> Sint32
-                    -> Ivory eff ()
-arrayCopyFromOffset to from fromOffset end = do
-  assert (fromOffset >=? 0 .&& fromOffset <? frLen)
-  assert (end        >=? 0 .&& end       <=? toLen)
-  arrayMap $ go
-  where
-  -- The index is w.r.t. the from array.
-  go ix =
-    cond_
-      [   -- We've reached the @end@ index: stop copying.
-          (fromIx ix >=? end)
-      ==> return ()
-          -- We've reached the end of the @to@ array: stop copying.
-      ,   (fromIx ix >=? toLen)
-      ==> return ()
-      ,   true
-      ==> (deref (from ! mkIx ix) >>= store (to ! ix))
-      ]
-
-  toLen = arrayLen to
-  frLen = arrayLen from
-
-  mkIx ix = toIx (fromOffset + fromIx ix)

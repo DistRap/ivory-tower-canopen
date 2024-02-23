@@ -33,6 +33,7 @@ library
                        tower              >= 0.9,
                        tower-config,
                        tower-hal,
+                       ivory-tower-base,
                        ivory-tower-canopen-core,
                        canopen-schema-tower
 
