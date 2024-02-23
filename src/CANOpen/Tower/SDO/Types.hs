@@ -160,7 +160,7 @@ sdoCannotTransferOrStoreDevState = SDOError 0x08000022
 -- ^^ not needed, we don't generate object dictionary dynamically
 
 --dictErrToSDOErr :: GetReturn eff ~ 'Returns SDOError => DictError -> Ivory eff ()
-dictErrToSDOErr :: Def ('[DictError] ':-> SDOError)
+dictErrToSDOErr :: Def ('[DictError] :-> SDOError)
 dictErrToSDOErr = proc "dictErrToSDOErr" $ \x -> body $ do
   cond_ [
       x ==? noError ==> ret sdoNoError
