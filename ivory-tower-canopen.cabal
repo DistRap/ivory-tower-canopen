@@ -1,13 +1,14 @@
+cabal-version:       2.2
 name:                ivory-tower-canopen
 version:             0.1.0.0
 synopsis:            CANOpen
 description:         Ivory Tower implementation of CANOpen protocol
-license:             BSD3
-author:              Richard Marko
+license:             BSD-3-Clause
+license-file:        LICENSE
+author:              Sorki
 maintainer:          srk@48.io
 category:            Embedded
 build-type:          Simple
-cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
