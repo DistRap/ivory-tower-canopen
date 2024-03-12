@@ -43,7 +43,7 @@ canopenTower :: ChanOutput ('Struct "can_message")
              -> CANOpenLEDs
              -> ObjDict
              -> Tower e ()
-canopenTower res req CANOpenConfig{..} leds objdictApp = do
+canopenTower res req cfg@CANOpenConfig{..} leds objdictApp = do
   canopenTowerDeps
 
   (nid_update_in, nid_update_out) <- channel
@@ -60,7 +60,7 @@ canopenTower res req CANOpenConfig{..} leds objdictApp = do
 
   objdictMerged <- objDictRouter objdictInternal objdictApp
 
-  (lss_nid_in, lss_nid_out) <- lssTower lss_out req attrs
+  lss_nid_out <- lssTower lss_out req cfg attrs
   (nmt_state_in, nmt_state_out) <- nmtTower nmt_out req nid_update_out attrs
 
   sdoTower sdo_out req objdictMerged nid_update_out

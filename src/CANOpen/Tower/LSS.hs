@@ -3,6 +3,8 @@
 
 module CANOpen.Tower.LSS where
 
+import qualified Data.Maybe
+
 import Ivory.Language
 import Ivory.Stdlib
 import Ivory.Tower
@@ -13,6 +15,7 @@ import Ivory.Tower.HAL.Bus.CAN.Fragment
 import Ivory.Serialize.LittleEndian
 
 import CANOpen.Ivory.Types.Identity
+import CANOpen.Tower.Config
 import CANOpen.Tower.Utils
 
 import CANOpen.Tower.Attr
@@ -87,23 +90,35 @@ lssCmd IdentifyNonConfiguredReply = 0x50
 -- devices
 lssTower :: ChanOutput ('Struct "can_message")
          -> AbortableTransmit ('Struct "can_message") ('Stored IBool)
+         -> CANOpenConfig
          -> BaseAttrs Attr
          -> Tower e (
-                ChanInput ('Stored Uint8)
-              , ChanOutput ('Stored Uint8)
+                ChanOutput ('Stored Uint8)
             )
-lssTower res req attrs = do
+lssTower res req cfg attrs = do
   (nid_in, nid_out) <- channel
-  -- XXX: handle this
-  (nid_upstream_in, nid_upstream_out) <- channel
 
   monitor "lss_controller" $ do
     received <- stateInit "lss_received" (ival (0 :: Uint32))
     lastmsg <- state "lss_lastmsg"
     ident <- state "lss_ident"
-    nodeId <- state "lss_node_id"
+    nodeId <-
+      stateInit
+        "lss_node_id"
+        $ ival
+        $ fromIntegral
+        $ Data.Maybe.fromMaybe 0
+        $ canOpenConfigNodeID cfg
 
-    stateConfig <- stateInit "lss_state_config" (ival false)
+    -- start in config mode if node ID is not set
+    stateConfig <-
+      stateInit
+        "lss_state_config"
+        $ ival
+        $ case canOpenConfigNodeID cfg of
+            Nothing -> true
+            Just _ -> false
+
     stateConfigured <- stateInit "lss_state_configured" (ival false)
     lastcmd <- state "lss_lastcmd"
 
@@ -255,7 +270,7 @@ lssTower res req attrs = do
               store identify false
           ]
 
-  return (nid_upstream_in, nid_out)
+  return nid_out
 
 -- unpack Uint32 from incoming LSS CAN message
 lssGetU32 :: LSSCMD
