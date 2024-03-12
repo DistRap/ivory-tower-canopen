@@ -28,7 +28,6 @@ app = do
   mapM_ towerDepends typeModules
   mapM_ towerModule typeModules
 
-
   (toCanIn, toCanOut) <- channel
   (fromCanIn, fromCanOut) <- channel
 
@@ -36,13 +35,12 @@ app = do
   ostream <- uartUnbuffer (
     buffered_ostream :: BackpressureTransmit UARTBuffer ('Stored IBool))
 
-  slCANTowerSimple ostream istream toCanIn fromCanOut-- (const (return ()))
+  slCANTowerSimple ostream istream toCanIn fromCanOut
 
   attrs@Cia402Attrs{..} <- towerCia402Attrs initCia402Attrs
   objdict <- objDictTower attrs
 
   fromCanInWrapped <- abortableWrapper fromCanIn
-  --(fromCanInWrapped, fromCanOutWrapped) <- channel
 
   canopenTower
     toCanOut
