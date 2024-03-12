@@ -44,7 +44,12 @@ app = do
   fromCanInWrapped <- abortableWrapper fromCanIn
   --(fromCanInWrapped, fromCanOutWrapped) <- channel
 
-  canopenTower toCanOut fromCanInWrapped emptyLEDs objdict
+  canopenTower
+    toCanOut
+    fromCanInWrapped
+    defaultCANOpenConfig
+    emptyLEDs
+    objdict
 
   p <- period (Milliseconds 100)
 

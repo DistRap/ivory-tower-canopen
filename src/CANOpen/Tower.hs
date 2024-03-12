@@ -10,7 +10,9 @@
 
 module CANOpen.Tower
   ( canopenTower
+  , CANOpenConfig(..)
   , CANOpenLEDs(..)
+  , module CANOpen.Tower.Config
   ) where
 
 import Ivory.Language
@@ -21,6 +23,7 @@ import Ivory.Tower.HAL.Bus.CAN
 import Ivory.Tower.HAL.Bus.Interface
 
 import CANOpen.Ivory.Types
+import CANOpen.Tower.Config
 import CANOpen.Tower.LSS
 import CANOpen.Tower.NMT
 import CANOpen.Tower.NMT.Types
@@ -36,10 +39,11 @@ import CANOpen.Tower.Interface.Base.Dict
 
 canopenTower :: ChanOutput ('Struct "can_message")
              -> AbortableTransmit ('Struct "can_message") ('Stored IBool)
+             -> CANOpenConfig
              -> CANOpenLEDs
              -> ObjDict
              -> Tower e ()
-canopenTower res req leds objdictApp = do
+canopenTower res req CANOpenConfig{..} leds objdictApp = do
   canopenTowerDeps
 
   (nid_update_in, nid_update_out) <- channel
@@ -151,11 +155,20 @@ canopenTower res req leds objdictApp = do
     handler systemInit "canopen_init" $ do
       ledStateE <- emitter ledState 1
       odIniE <- emitter (objdict_init objdictMerged) 1
+      nidE <- emitter nid_update_in 1
       callback $ const $ do
-        store stateLSS true
-        emitV ledStateE ledstateLSS
-        emitV odIniE true
+        case canOpenConfigNodeID of
+          Nothing -> do
+            store stateLSS true
+            emitV ledStateE ledstateLSS
+          Just preConfedId -> do
+            store nodeId (fromIntegral preConfedId)
+            emitV nidE (fromIntegral preConfedId)
+            emitV ledStateE ledstatePreOperational
 
+        -- when should we initialize dictionary?
+        -- this calls apps attrHandlers
+        emitV odIniE true
 
 canopenTowerDeps :: Tower e ()
 canopenTowerDeps = do
