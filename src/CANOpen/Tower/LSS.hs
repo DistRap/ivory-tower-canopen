@@ -28,7 +28,6 @@ lssRXCobID = 0x7E4
 
 data LSSCMD
   = SwitchModeGlobal
-  | SwitchModeSelectiveBase
   | SwitchModeSelectiveVendor
   | SwitchModeSelectiveProduct
   | SwitchModeSelectiveRevision
