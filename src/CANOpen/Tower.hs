@@ -98,6 +98,8 @@ canopenTower res req cfg@CANOpenConfig{..} leds objdictApp = do
         isSDOmsg <- assign $ cid .& (safeCast sdoRequestBase) ==? (safeCast sdoRequestBase)
         isPDOmsg <- assign $ cid .& (safeCast pdoBase) ==? (safeCast pdoBase)
 
+        -- TODO: this is bogus, LSS should receive
+        -- messages even in other modes
         when (isLSS .&& isLSSmsg) $ do
           emit lsse msg
 
@@ -162,7 +164,9 @@ canopenTower res req cfg@CANOpenConfig{..} leds objdictApp = do
             store stateLSS true
             emitV ledStateE ledstateLSS
           Just preConfedId -> do
+            -- TODO: use stateInit instead
             store nodeId (fromIntegral preConfedId)
+            -- TODO: pass cfg instead (similar to lss)
             emitV nidE (fromIntegral preConfedId)
             emitV ledStateE ledstatePreOperational
 
