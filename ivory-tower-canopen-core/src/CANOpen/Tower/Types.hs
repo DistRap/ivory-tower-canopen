@@ -3,6 +3,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE DataKinds #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module CANOpen.Tower.Types where
 
@@ -109,4 +110,3 @@ packsize = packsize' packRep
 
 packsize' :: PackRep a -> ConstRef s a -> Sint32
 packsize' rep _ = fromIntegral $ packSize rep
-
