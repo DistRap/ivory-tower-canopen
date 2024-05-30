@@ -233,13 +233,22 @@ sdoTower res req ObjDict{..} nid_update = do
           len <- buf ~>* stringLengthL
           assert (len <=? 255)
           -- XXX: handle segmented upload when len is larger than 4
-          ulen <- fmap (bitCast . (signCast :: Sint32 -> Uint32)) $ buf ~>* stringLengthL
+          ulen <-
+            fmap (bitCast . (signCast :: Sint32 -> Uint32))
+            $ buf ~>* stringLengthL
 
           let expedited = true
               size_indicated = true
 
           arr <- local $ izerolen (Proxy :: Proxy 8)
-          store (arr ! 0) $ toRep $ uploadReply expedited size_indicated ulen
+          store
+            (arr ! 0)
+            $ toRep
+            $ uploadReply
+                expedited
+                size_indicated
+                (4 - ulen)
+
           -- pack multiplexer (3 bytes)
           packInto arr 1 (getres ~> getres_mux)
 
