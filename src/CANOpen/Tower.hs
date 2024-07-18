@@ -75,8 +75,6 @@ canopenTower res req cfg@CANOpenConfig{..} leds objdictApp = do
 
     nodeId <- stateInit "canopen_nodeid" (ival (0 :: Uint8))
 
-    dbg <- state "dbg"
-
     handler res "canmsg" $ do
       lsse <- emitter lss_in 1
       nmte <- emitter nmt_in 1
@@ -88,8 +86,6 @@ canopenTower res req cfg@CANOpenConfig{..} leds objdictApp = do
 
         nid <- deref nodeId
         cid <- getStdCANId msg
-
-        store dbg (cid)
 
         isLSS <- deref stateLSS
 
