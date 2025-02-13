@@ -172,6 +172,8 @@ canopenTower res req cfg@CANOpenConfig{..} leds objdictApp = do
 
 canopenTowerDeps :: Tower e ()
 canopenTowerDeps = do
+  CANOpen.Ivory.Types.towerDeps
+
   towerDepends dictTypes
   towerModule dictTypes
 
