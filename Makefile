@@ -12,13 +12,7 @@ test: $(TESTS)
 clean: $(CLEANS)
 	make -C schema clean
 
-# This target bootstraps Cidl if the generated packages do not exist
-# yet, then calls the default target to generate them.
-.PHONY: cidl-bootstrap
-cidl-bootstrap:
-	cd ../cidl; stack install
-
-schema: cidl-bootstrap
+schema:
 	make -C schema/
 
 define MKTEST

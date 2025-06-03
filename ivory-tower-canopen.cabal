@@ -38,6 +38,7 @@ library
                        ivory-tower-base,
                        ivory-tower-canopen-core,
                        canopen-schema-tower
+  build-tool-depends:  cidl:cidl
 
   default-language:    Haskell2010
   ghc-options:         -Wall
